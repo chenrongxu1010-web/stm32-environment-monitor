@@ -1,3 +1,8 @@
-# 项目图片
+# 开发实拍
 
-本目录用于后续保存真实的开发板接线、OLED 显示、串口输出和逻辑分析仪截图。当前未附图片，主 README 不引用不存在的图片。
+| 文件 | 内容与范围 |
+| --- | --- |
+| [prototype-wiring.jpg](prototype-wiring.jpg) | 原型搭建与外设接线全景，开发过程记录 |
+| [spi-jedec-capture.jpg](spi-jedec-capture.jpg) | PulseView SPI 采集照片，含 `9F` 命令和 `EF 40 17` ID 字节 |
+
+由项目作者提供，2026-11-03 整理上传。原图未做内容改写。照片不能替代完整功能与边界验证；OLED 花屏过程图不作为成品效果展示。

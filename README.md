@@ -15,9 +15,32 @@
 | 本仓库裸机工程 | 已实现温湿度采集、OLED 显示、UART 输出、Flash 阈值保存/加载、报警状态与按键控制 |
 | 滞回报警 | 已有触发/恢复双阈值及模块接口；当前恢复分支存在缺陷，详见“关键技术点” |
 | FreeRTOS 迁移准备 | 独立本地工程 `freertos_lab01` 已创建 LED / UART 两个任务并使用 `osDelay`；尚未并入本仓库环境监测业务 |
-| Queue 任务间通信 | 后续计划，当前应用未实现 |
+| FreeRTOS 学习进度 | 已学习任务调度与消息队列，目前学到 Event Flags；尚未集成到本仓库业务 |
 
-本文状态依据 2026-10-03 的源码核查；FreeRTOS 实验源码暂未收录于本仓库。当前克隆仓库得到的仍是裸机工程。
+裸机实现说明沿用此前源码核查；2026-11-03 补充实物照片与作者当前学习进度，并复核报警恢复分支。FreeRTOS 实验源码暂未收录于本仓库，当前克隆得到的仍是裸机工程。
+
+## 实物与调试证据
+
+### 原型搭建与外设接线
+
+<img src="Images/prototype-wiring.jpg" alt="NUCLEO-F401RE 环境监测项目开发过程中的面包板与外设接线" width="760">
+
+作者开发过程中的实拍：NUCLEO-F401RE、面包板、外接模块与调试工具。照片用于展示实际搭建过程；引脚对应关系以本文硬件连接表为准，不把开发过程照片当作全部功能验收结果。
+
+### SPI Flash：JEDEC ID 的总线观测
+
+<img src="Images/spi-jedec-capture.jpg" alt="PulseView SPI 逻辑分析采集，显示 9F 命令与 EF 40 17 ID 响应" width="900">
+
+照片中的 PulseView 同时采集片选、时钟和数据线，并给出 SPI 解码：
+
+| 方向 | 本次事务中的字节 | 解读 |
+| --- | --- | --- |
+| MOSI | `9F FF FF FF` | 发送读取 ID 命令，随后发送填充字节产生时钟 |
+| MISO | `FF EF 40 17` | 命令阶段接收一个字节，后续三个 ID 字节为 `EF 40 17` |
+
+这张实拍支持“使用逻辑分析仪观察并解码 SPI 事务”的实践说明；单次正常 ID 读取不等于完整擦写、掉电恢复或长期稳定性测试通过。背景文字不作为独立测试证据。
+
+照片为历史开发记录，于 2026-11-03 整理上传。当前未提供正常温湿度显示和报警触发/恢复视频，后续可补充相应实机演示。
 
 ## 工程能力与设计取舍
 
@@ -115,7 +138,7 @@ stm32-environment-monitor/
 │   └── Startup/             # Cortex-M4 启动文件
 ├── Application/             # alarm.c / alarm.h
 ├── Drivers/                 # CMSIS、STM32 HAL 与原许可证
-├── Images/                  # 图片目录说明，待补充实物资料
+├── Images/                  # 原型接线实拍与 SPI 总线解码照片
 ├── .project / .cproject     # CubeIDE 工程配置
 ├── .settings/
 ├── gpio_led01.ioc           # CubeMX 配置
@@ -170,7 +193,9 @@ USART2 以 115200 / 8N1 输出外设初始化结果、JEDEC ID、Flash 配置来
 
 外设模块持有各自 HAL 句柄，通过公开函数提供设备操作；Config 隔离 Flash 地址和配置存储格式；Alarm 使用 `static` 保存内部状态与使能标志。`main.c` 负责调度，不直接维护 Alarm 内部变量。这种划分有助于逐个调试外设，也为后续调整任务边界提供基础。
 
-### FreeRTOS 任务调度：独立实验进展
+### FreeRTOS：独立学习进度与早期实验
+
+**截至 2026-11-03：** 作者已学习任务状态、优先级抢占、消息队列，目前学到事件标志（Event Flags）。这些是独立学习进度，尚未完成环境监测业务的 RTOS 集成。下表保留早期双任务实验记录，不代表最新全部实验。
 
 本地 `freertos_lab01` 使用 **FreeRTOS + CMSIS-RTOS2**，在 `main.c` 中通过 `osKernelInitialize`、`osThreadNew`、`osKernelStart` 初始化并启动调度。
 
@@ -179,7 +204,7 @@ USART2 以 115200 / 8N1 输出外设初始化结果、JEDEC ID、Flash 配置来
 | LED Task | `defaultTask` / `StartDefaultTask` | 翻转 LED GPIO | `osDelay(500)` |
 | UART Task | `UartTask` / `StartUartTask` | 发送串口消息 | `osDelay(1000)` |
 
-两个任务均配置为 `osPriorityNormal`，实验启用抢占式调度。两个任务均配置为 `osPriorityNormal`，实验启用抢占式调度。`osDelay` 的参数单位为内核 tick。实验配置 `configTICK_RATE_HZ = 1000`，因此上述等待约为 500 ms 和 1000 ms；任务进入 Blocked 状态后，调度器可运行其他 Ready 任务，等待到期后仍需按调度规则获得 CPU。任务执行本身也耗时，因此“相对延时 + 工作”的循环不等于严格定周期任务。详见 [CMSIS-RTOS2 等待函数说明](https://arm-software.github.io/CMSIS_6/main/RTOS2/group__CMSIS__RTOS__Wait.html)。
+两个任务均配置为 `osPriorityNormal`，实验启用抢占式调度。`osDelay` 的参数单位为内核 tick。实验配置 `configTICK_RATE_HZ = 1000`，因此上述等待约为 500 ms 和 1000 ms；任务进入 Blocked 状态后，调度器可运行其他 Ready 任务，等待到期后仍需按调度规则获得 CPU。任务执行本身也耗时，因此“相对延时 + 工作”的循环不等于严格定周期任务。详见 [CMSIS-RTOS2 等待函数说明](https://arm-software.github.io/CMSIS_6/main/RTOS2/group__CMSIS__RTOS__Wait.html)。
 
 这一步用于理解阻塞与调度。本仓库传感器、显示、报警和 Flash 操作仍由裸机主循环组织；Queue 通信及共享外设访问保护尚待实现。
 
@@ -236,4 +261,4 @@ Temperature: 26.3 C, Humidity: 71.0 %, State: NORMAL
 - **推进 FreeRTOS 迁移：** 在 LED / UART 实验基础上拆分采集、显示和报警任务，明确每个外设的访问责任。
 - **引入 Queue：** 由采集任务发送温湿度快照，业务任务接收处理；同步明确队列满、超时及共享总线保护策略。
 - **增强配置可靠性：** 检查保存返回值，增加版本标记、完整性校验、BUSY 等待超时与断电恢复策略。
-- **补齐演示证据：** 增加真实接线照片、OLED 显示、串口日志和状态边界测试记录。
+- **补齐演示证据：** 已补充真实接线与 SPI 解码照片；后续增加正常 OLED 显示、串口日志和报警状态边界测试记录。
