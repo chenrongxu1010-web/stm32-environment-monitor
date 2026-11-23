@@ -10,7 +10,9 @@
 
 #define W25Q64_CMD_JEDEC_ID  0x9F
 
-#define W25Q64_CMD_READ_STATUS   0x05
+#define W25Q64_CMD_READ_STATUS1  0x05
+#define W25Q64_CMD_READ_STATUS2  0x35
+#define W25Q64_CMD_READ_STATUS3  0x15
 #define W25Q64_CMD_WRITE_ENABLE  0x06
 
 #define W25Q64_STATUS_BUSY       0x01
@@ -107,11 +109,9 @@ HAL_StatusTypeDef W25Q64_ReadJEDEC_ID(
     return HAL_OK;
 }
 
-static HAL_StatusTypeDef W25Q64_ReadStatus(uint8_t *status)
+static HAL_StatusTypeDef W25Q64_ReadStatus(uint8_t cmd, uint8_t *status)
 {
-    uint8_t cmd = W25Q64_CMD_READ_STATUS;
-
-    if (status == NULL)
+    if ((w25q64_spi == NULL) || (status == NULL))
     {
         return HAL_ERROR;
     }
@@ -135,35 +135,96 @@ static HAL_StatusTypeDef W25Q64_ReadStatus(uint8_t *status)
     return HAL_OK;
 }
 
+
+HAL_StatusTypeDef W25Q64_ReadStatus1(uint8_t *status)
+{
+    return W25Q64_ReadStatus(W25Q64_CMD_READ_STATUS1, status);
+}
+
+HAL_StatusTypeDef W25Q64_ReadStatus2(uint8_t *status)
+{
+    return W25Q64_ReadStatus(W25Q64_CMD_READ_STATUS2, status);
+}
+
+HAL_StatusTypeDef W25Q64_ReadStatus3(uint8_t *status)
+{
+    return W25Q64_ReadStatus(W25Q64_CMD_READ_STATUS3, status);
+}
+
 static HAL_StatusTypeDef W25Q64_WriteEnable(void)
 {
-    uint8_t cmd = W25Q64_CMD_WRITE_ENABLE;
+    if (w25q64_spi == NULL)
+    {
+        return HAL_ERROR;
+    }
 
+    uint8_t cmd = W25Q64_CMD_WRITE_ENABLE;
+    uint8_t status_reg = 0;
+
+    /* 第一步：发送写使能指令 0x06 */
     W25Q64_CS_Low();
 
-    HAL_StatusTypeDef status =
+    HAL_StatusTypeDef result =
         HAL_SPI_Transmit(w25q64_spi, &cmd, 1, 100);
 
     W25Q64_CS_High();
 
-    return status;
+    if (result != HAL_OK)
+    {
+        return result;
+    }
+
+    /* 第二步：读取状态寄存器 */
+    if (W25Q64_ReadStatus1(&status_reg) != HAL_OK)
+    {
+        return HAL_ERROR;
+    }
+
+    /* 第三步：检查 WEL 位是否置 1 */
+    if ((status_reg & W25Q64_STATUS_WEL) == 0U)
+    {
+        return HAL_ERROR;
+    }
+
+    return HAL_OK;
 }
+
+
 
 static HAL_StatusTypeDef W25Q64_WaitBusy(void)
 {
-    uint8_t status;
-
-    do
+    if (w25q64_spi == NULL)
     {
-        if (W25Q64_ReadStatus(&status) != HAL_OK)
+        return HAL_ERROR;
+    }
+
+    uint8_t status = 0;
+
+    /* 记录开始等待的时间 */
+    uint32_t start_tick = HAL_GetTick();
+
+    while (1)
+    {
+        /* 读取 Flash 状态寄存器 */
+        if (W25Q64_ReadStatus1(&status) != HAL_OK)
         {
             return HAL_ERROR;
         }
 
-    } while ((status & W25Q64_STATUS_BUSY) != 0);
+        /* BUSY = 0，Flash 操作完成 */
+        if ((status & W25Q64_STATUS_BUSY) == 0U)
+        {
+            return HAL_OK;
+        }
 
-    return HAL_OK;
+        /* 等待超过 5000ms，退出避免死循环 */
+        if ((uint32_t)(HAL_GetTick() - start_tick) >= 5000U)
+        {
+            return HAL_TIMEOUT;
+        }
+    }
 }
+
 
 HAL_StatusTypeDef W25Q64_ReadData(uint32_t address,
                                  uint8_t *data,

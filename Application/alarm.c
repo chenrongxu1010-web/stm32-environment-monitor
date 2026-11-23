@@ -37,24 +37,24 @@ static uint8_t alarm_enabled = 1;
 void Alarm_Update(int32_t temperature_x10,
                   uint32_t humidity_x10)
 {
-
-    if(alarm_state == ALARM_NORMAL)
+    /* 当前处于正常状态：判断是否触发报警 */
+    if (alarm_state == ALARM_NORMAL)
     {
-        if(temperature_x10 >= temp_on_x10 ||
-        		humidity_x10 >= humi_on_x10)
+        if (temperature_x10 >= (int32_t)temp_on_x10 ||
+            humidity_x10 >= (uint32_t)humi_on_x10)
         {
             alarm_state = ALARM_ACTIVE;
         }
     }
+    /* 当前处于报警状态：判断是否满足恢复条件 */
     else
     {
-        if(temperature_x10 >= temp_on_x10 &&
-        		humidity_x10 >= humi_on_x10)
+        if (temperature_x10 <= (int32_t)temp_off_x10 &&
+            humidity_x10 <= (uint32_t)humi_off_x10)
         {
             alarm_state = ALARM_NORMAL;
         }
     }
-
 }
 
 

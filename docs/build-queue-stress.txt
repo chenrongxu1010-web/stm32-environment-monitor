@@ -1,0 +1,5 @@
+21:19:31 Build Finished. 0 errors, 0 warnings. (took 650ms)
+arm-none-eabi-size  gpio_led01.elf
+   text	   data	    bss	    dec	    hex	filename
+  43744	    112	  21432	  65288	   ff08	gpio_led01.elf
+21:19:36 Build Finished. 0 errors, 0 warnings. (took 3s.952ms)

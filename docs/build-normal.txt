@@ -1,0 +1,4 @@
+arm-none-eabi-size  gpio_led01.elf
+   text	   data	    bss	    dec	    hex	filename
+  41172	    112	  21272	  62556	   f45c	gpio_led01.elf
+21:19:08 Build Finished. 0 errors, 0 warnings. (took 9s.465ms)

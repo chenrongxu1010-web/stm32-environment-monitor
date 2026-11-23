@@ -18,6 +18,10 @@ HAL_StatusTypeDef W25Q64_ReadJEDEC_ID(uint8_t *manufacturer,
                                      uint8_t *memory_type,
                                      uint8_t *capacity);
 
+HAL_StatusTypeDef W25Q64_ReadStatus1(uint8_t *status);
+HAL_StatusTypeDef W25Q64_ReadStatus2(uint8_t *status);
+HAL_StatusTypeDef W25Q64_ReadStatus3(uint8_t *status);
+
 HAL_StatusTypeDef W25Q64_ReadData(uint32_t address,
                                  uint8_t *data,
                                  uint16_t size);
